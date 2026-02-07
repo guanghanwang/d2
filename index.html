@@ -428,65 +428,7 @@
   <div class="container is-max-desktop">
     <h2 class="title">Experimental results</h2>
     <div class="content is-medium">
-      <h3 class="subtitle" style="font-size:1.6rem;"><em>Unconditional text generation on OpenWebText</em></h3><br>
-      We test ReMDM's text generation capacity with unconditoinal generation from models trained on OpenWebText.
-      We report the MAUVE score as the main metric due to the generative perplexity (Gen PPL.) hacking phenomenon (see Section 5.1.1 in the paper for more details).
-      Note that Gen PPL. and entropy are only reported for completeness and that lower Gen PPL. does not always correlate with better quality.
-      We examine two settings: (1) inference-time scaling (\(T \geq L=1024\)) and (2) faster sampling (\(T < L=1024\)).
-      In both settings, ReMDM achieves the best performance. Notably, ReMDM scales favorably with inference-time compute. In contrast, masked diffusion models scale poorly with \(T\), and
-      corrector sampler methods saturate when \(T\) is large. 
-      <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
-        <br>
-        ReMDM improves sample quality in the case of inference-time scaling and faster sampling. ReMDM outperforms state-of-the-art
-        masked diffusion models (SEDD; <a href="https://arxiv.org/abs/2310.16834">Lou et al. (2024)</a>, MDLM; <a href="https://arxiv.org/abs/2406.07524">Sahoo et al. (2024)</a>) 
-        and masked diffusion models with corrector samplers such as Forward-Backward (FB; <a href="https://proceedings.neurips.cc/paper_files/paper/2022/hash/b5b528767aa35f5b1a60fe0aaeca0563-Abstract-Conference.html">Campbell et al. (2022)</a>) 
-        and Discrete Flow Matching (DFM; <a href="https://proceedings.neurips.cc/paper_files/paper/2024/hash/f0d629a734b56a642701bba7bc8bb3ed-Abstract-Conference.html">Gat et al. (2024)</a>) corrector samplers. 
-        \(^{\dagger}\) indicates nucleus sampling (top-p=0.9). For each \(T\), the best diffusion MAUVE score is <strong>bolded</strong>.
-        <img src="static/images/OWT_table.png" alt="Caduceus" style="width:900px;height:430px;">
-      </h4>
-      <h3 class="subtitle" style="font-size:1.6rem;"><em>Class-conditioned image generation on ImageNet 256\(\times\)256</em></h3><br>
-      We use a pretrained MaskGiT model (<a href="https://openaccess.thecvf.com/content/CVPR2022/html/Chang_MaskGIT_Masked_Generative_Image_Transformer_CVPR_2022_paper.html">Chang et al., 2022</a>) that was trained on ImageNet samples with 256\(\times\)256 pixels. For each experiment, we 
-      use a different sampler (MaskGiT, MDLM, or ReMDM) and generate 50,000 images conditioned on randomly sampled class labels. We measure sample quality using 
-      Fr&eacutechet Inception Distance (FID) and Inception Score (IS) and report the best setting for each method. Although for the smallest \(T\) decoding setting MaskGiT 
-      outperforms the other methods, we see that ReMDM has the best scaling, producing the highest quality images of any model at \(T = 64\). 
-      <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
-        <br>
-        ReMDM produces the highest quality images. Values reflect FID / IS for varying \(T\) on discretized ImageNet conditional generation. For each metric and \(T\), 
-        the best value is <strong>bolded</strong>.
-        <img src="static/images/Imagenet_table.png" alt="Caduceus" style="width:400px;height:195px;">
-      </h4>
-      <h3 class="subtitle" style="font-size:1.6rem;"><em>Conditional QM9 molecule generation</em></h3><br>
-      We follow the setup from <a href="https://arxiv.org/abs/2412.10193">Schiff et al. (2024)</a> to explore controlled small molecule generation. We use the discrete
-      classifier-free guidance (D-CFG) and discrete classifier-based guidance (D-CBG) methods defined in <a href="https://arxiv.org/abs/2412.10193">Schiff et al. (2024)</a> 
-      to conditionally generate molecules with higher ring counts (greater than 90th percentile in the original dataset) on top of AR, MDLM, ReMDM and UDLM (state-of-the-art uniform noise discrete diffusion models
-      proposed in <a href="https://arxiv.org/abs/2412.10193">Schiff et al. (2024)</a>). For D-CBG on AR, we use the popular FUDGE (<a href="https://arxiv.org/abs/2104.05218">Yang & Klein, 2021</a>) method.
-      In the following figure, we display the trade-off that comes from increasing guidance strength \(\gamma\). We only visualize results for samples that had at 
-      least 50 novel sequences. For both forms of guidance, D-CFG and D-CBG, ReMDM outperforms AR and diffusion approaches, pushing the novelty-property maximization 
-      frontier beyond that of the baseline methods. Additionally, ReMDM scales favorably with more inference-time compute, seen by the curves for larger T dominating 
-      those for smaller T. 
-      <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
-        <img src="static/images/qm9.png" alt="Caduceus" style="width:1000px;height:350px;">
-        <br>
-        ReMDM improves steerability by extending the novelty-property maximization frontier. Controlled generation for ring count maximization on QM9 dataset 
-        with varying inference compute \(T\) and guidance strength \(\gamma\). (Left) Discrete classifier-free guidance (D-CFG). 
-        (Right) Discrete classifier-based guidance (D-CBG) and FUDGE for AR.
-      </h4>
-      <h3 class="subtitle" style="font-size:1.6rem;"><em>Downstream task performance</em></h3><br>
-      Recent diffusion large language models (dLLMs) such as LLaDA 8B <a href="https://arxiv.org/abs/2502.09992">Nie et al. (2024)</a>
-      and Dream 7B <a href="https://hkunlp.github.io/blog/2025/dream/">Nie et al. (2024)</a> have demonstrated on par downstream 
-      task performance with autoregressive language models of the same parameter scale. However, these dLLMs still suffer 
-      from the failure to remask property. Therefore, we test the effect of remasking sampling on dLLLMs on Countdown
-      (bidirectional reasoning) and TruthfulQA (factual knowledge grasp). In both of the settings, we use few-shot evaluation 
-      (4-shot for Countdown, and 6-shot for TruthfulQA). In Countdown, pass@1 is reported and in TruthfulQA, the ROUGE score 
-      differences between the model and correct answers and model and plausibly wrong answers provided by the dataset are reported. For both of the metrics, 
-      we report their mean values and 95% confidence intervals of 20 experiment runs with different random seeds.
-      As shown in the following table, LLaDA with ReMDM consistently performs the best and exceeds the original LLaDA with statistical significance. 
-      <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
-        <br>
-        LLaDA with ReMDM performs the best on downstream tasks, and consistently exceeds the original LLaDA with statistical
-        significance. For each metric, the best value is <strong>bolded</strong>.
-        <img src="static/images/llada_table.png" alt="Caduceus" style="width:500px;height:150px;">
-      </h4>
+      
     </div>
   </div>
 </section>
