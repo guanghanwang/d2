@@ -145,13 +145,11 @@
   <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
     <img src="static/images/graphical_abstract.png" alt="Caduceus" style="width:2000px;height:280px;">
     <br>
-      Our family of masked diffusion processes allow for more flexible generation with remasking of already decoded tokens. This
-      improves sample quality and further closes the gap to AR models. <em>(Left)</em> An illustrative example of errors fixed by ReMDM. The first two
-      tokens can be “They sell” or “She sells”, but due to the independence of the parallelized decoding processes, “She sell” is decoded. Such
-      mistakes can be corrected by remasking samplers. <em>(Right)</em> MAUVE scores on OpenWebText. MDLM is from <a href="https://arxiv.org/abs/2406.07524">
-      Sahoo et al. 2024</a>. FB and DFM denote the forward-backward (<a href="https://proceedings.neurips.cc/paper_files/paper/2022/hash/b5b528767aa35f5b1a60fe0aaeca0563-Abstract-Conference.html">
-      Campbell et al., 2022</a>) and discrete flow matching (<a href="https://proceedings.neurips.cc/paper_files/paper/2024/hash/f0d629a734b56a642701bba7bc8bb3ed-Abstract-Conference.html">
-      Gat et al., 2024</a>) correctors, respectively.
+      Our reinforcement learning (RL) post-training framework for diffusion language models, d2, consistently outperforms previous baselines, such as 
+      d1 (<a href="https://arxiv.org/abs/2504.12216">
+      Zhao et al., 2025</a>), and wd1 (<a href="https://arxiv.org/abs/2507.08838">
+      Tang et al., 2025</a>) across four math and logical reasoning benchmarks. While previous methods, such as d1, relies on chain-of-thought supervised finetuning (SFT) to enhance 
+      reasoning performance, d2 is able to outperform them without SFT, verifying the efficacy of our proposed RL algorithm.
   </h4>
   <br>
 </div>
@@ -164,12 +162,15 @@
       <div class="content is-medium">
         <h2 class="title">Our contributions</h2>
         <ul>
-          <li>We introduce the remasking diffusion model (ReMDM) sampler and a number of add-on components that bring performant iterative refinement 
-            via remasking to masked diffusion models.</li>
-          <li>We show that our method is a form of ancestral sampling in a probabilistic model whose ELBO is similar to that of classical masked diffusion. 
-            This analysis suggests using our sampler on top of pre-trained models, which we find to work well.</li>
-          <li>Across the domains of natural language, discretized images, and molecule string representations, we demonstrate empirically that ReMDM endows 
-            masked diffusion with inference-time scaling that improves sample quality with more computation, and that also enhances controlled generation.</li>
+          <li>We derive a novel GRPO-style RL policy gradient algorithm for masked DLMs, highlighting the importance 
+            of accurate trajectory likelihood estimates for training reasoning diffusion language models.</li>
+          <li>We introduce <strong>d2-AnyOrder</strong>, which enables unbiased one-pass likelihood estimates of sample trajectories 
+            in DLMs that support <strong>any-order decoding</strong>. Empirically, d2-AnyOrder significantly outperforms widely-used 
+            RL baselines such as diffu-GRPO (<a href="https://arxiv.org/abs/2504.12216"> Zhao et al., 2025</a>) and 
+            DDPO (<a href="https://arxiv.org/abs/2305.13301"> Black et al., 2023</a>).</li>
+          <li>For DLMs that do not naturally support any-order decoding, we propose <strong>d2-StepMerge</strong> to provide practical 
+            likelihood approximation. When applied to LLaDA-8B-Instruct, d2-StepMerge achieves state-of-the-art reasoning 
+            results on Sudoku, Countdown, GSM8K, and MATH500, without relying on supervised fine-tuning.</li>
         </ul>
       </div>
     </div>
@@ -493,12 +494,11 @@
     <div class="container is-max-desktop content">
       <h2 class="title">BibTeX</h2>
       <pre><code>
-        @inproceedings{wang2025remasking,
-          title={Remasking Discrete Diffusion Models with Inference-Time Scaling},
-          author={Wang, Guanghan and Schiff, Yair and Sahoo, Subham and Kuleshov, Volodymyr},
-          booktitle={The Thirty-ninth Annual Conference on Neural Information Processing Systems},
-          year={2025},
-          url={https://openreview.net/forum?id=IJryQAOy0p}
+        @article{wang2025d2,
+          title={d2: Improved techniques for training reasoning diffusion language models},
+          author={Wang, Guanghan and Schiff, Yair and Turok, Gilad and Kuleshov, Volodymyr},
+          journal={arXiv preprint arXiv:2509.21474},
+          year={2025}
         }
       </code></pre>
     </div>
