@@ -184,17 +184,13 @@
   <div class="container is-max-desktop">
     <h2 class="title">Motivation</h2>
     <div class="content is-medium">
-      Masked discrete diffusion models have recently challenged the long-dominant next-token prediction autoregressive (AR) models in language modeling. Although 
-      masked diffusion models still slightly lag behind AR models regarding the quality of language distribution estimation, i.e., test perplexity, they hold 
-      several key advantages over AR models. First, masked diffusion models can flexibly change the number of model forward passes during sampling. One can either 
-      reduce the number of sampling steps for faster generation or increase this number to trade extra compute for better quality, i.e., conduct inference-time 
-      compute scaling. Second, when combined with diffusion guidance techniques, masked diffusion models are more adaptable to conditional generation.<br><br>However, 
-      one major drawback of previous masked diffusion models, which we refer to as the <strong>failure to remask</strong> property, has hindered the potentials mentioned above. To 
-      be more specific, in previous masked diffusion models, once a token is unmasked in the sampling process, it can never be masked or changed again. This 
-      property decides that no matter how many time steps are set for the sampling process, only the number of sequence length token predictions can be made, 
-      drastically restricting masked diffusion models' inference-time scaling capacity. Besides, this property also harms the model's controllability, since it 
-      cannot change the tokens generated at the early sampling phase even though they may have obstacled the desired holistic feature. In order to tackle this 
-      drawback, we propose <strong>ReMDM</strong>, a simple and general framework to design remasking samplers for masked diffusion models.
+      Masked diffusion language models (DLMs) have recently emerged as a competitive alternative to autoregressive (AR) models for language generation. 
+      Yet, while reinforcement learning (RL) has become the de-facto approach for inducing reasoning in AR LLMs, post-training of DLMs using RL
+      remains an active research area due to the complexity of DLM policies.<br>  
+
+      <br>In this project, we study the problem of RL for DLMs in a principled way. Concretely, we first dervie the GRPO objective of masked DLMs 
+      starting from the policy gradient estimation. We then propose practical ways of conducting RL on masked DLMs inspired by our theorectical
+      derviation, which we find to work well empirically compared with previous heuristics-based baselines.
     </div>
   </div>
 </section>
@@ -204,7 +200,7 @@
 <!-- Background -->
 <section class="section" id="Motivation">
   <div class="container is-max-desktop">
-    <h2 class="title">A Brief overview of masked diffusion models</h2>
+    <h2 class="title">Deriving the GRPO objective for masked DLMs</h2>
     <div class="content is-medium">
       <!-- Given a clean one-hot representation of a data token \(\mathbf{x} \in \mathbb{R}^{|V|} \), where \(|V|\) denotes the vocabulary size, masked diffusion models
       design a forward Markov chain process \(q\) to gradually add noise to \(\mathbf{x}\) and learn a parameterized model \(p_\theta\) to fit the corresponding
@@ -242,33 +238,48 @@
       <br><strong>Failure-to-remask property</strong>: As mentioned above, when \(\mathbf{z}_t \neq \mathbf{m}\), \(\mathbf{x}_\theta(\mathbf{z}_t)=\mathbf{z}_t\). This deduces that 
       \(p_\theta(\mathbf{z}_s|\mathbf{z}_t) = \mathrm{Cat}(\mathbf{z}_s; \mathbf{z}_t)\). Intuitionally, in the sampling process, once a token is unmasked, it stays unchanged until the end of the generation process.
       We refer to this as the failure-to-remask property.  -->
-      Given a clean one-hot representation of a data token \(\mathbf{x} \in \mathbb{R}^{|V|} \), where \(|V|\) denotes the vocabulary size, masked diffusion models
+      <!-- Given a clean one-hot representation of a data token \(\mathbf{x} \in \mathbb{R}^{|V|} \), where \(|V|\) denotes the vocabulary size, masked diffusion models
       design a forward Markov chain process \(q\) to gradually add noise to \(\mathbf{x}\) towards some limiting distribution \(\mathbf{m}\), which corresponds to a one-hot represesntation of a special \([MASK]\) token.
       Specifically, the forward process \(q\) is handcrafted and the marginal of each latent variable \(\mathbf{z}_t\) for \(t \in [0, 1]\), takes the following form.
       $$
       q(\mathbf{z}_t|\mathbf{x}) = \mathrm{Cat}(\mathbf{z}_t;\alpha_t\mathbf{x} + (1 - \alpha_t)\mathbf{m}), 
       $$
       where \(\mathrm{Cat}\) denotes the categorical distribution and \(\alpha_t\) is a monotonically decreasing scalar variable with \(\alpha_0 \approx 1\) and \(\alpha_1 \approx 0\).
-      <!-- Intuitively, this process corresponds to each clean token \(\mathbf{x}\) 'picking a time' \(t\) and mask it, and the probability of \(\mathbf{x}\) remaining unmasked at time \(t\) is \(\alpha_t\). -->
-      Letting \(s\) denote the time step directly preceding \(t\), by Bayes' rule, the ground-truth posterior takes the following form:
+      Intuitively, this process corresponds to each clean token \(\mathbf{x}\) 'picking a time' \(t\) and mask it, and the probability of \(\mathbf{x}\) remaining unmasked at time \(t\) is \(\alpha_t\). -->
+      <!-- Letting \(s\) denote the time step directly preceding \(t\), by Bayes' rule, the ground-truth posterior takes the following form:
       $$
       q(\mathbf{z}_s|\mathbf{z}_t, \mathbf{x}) = \mathrm{Cat}(\mathbf{z}_s; \frac{\alpha_s - \alpha_t}{1 - \alpha_t}\mathbf{x} + \frac{1 - \alpha_s}{1 - \alpha_t}\mathbf{z}_t)
       $$
       
       The goal of diffusion modeling is to learn a parameterized model \(p_\theta\) to fit the corresponding reverse process.
       We parameterize this model with a neural network \(\mathbf{x}_\theta(\mathbf{z}_t)\) that aims to recover \(\mathbf{x}\) given some noised latent at timestep \(t\), and we set the parameterized posterior as \(p_\theta(\mathbf{z}_s|\mathbf{z}_t) = q(\mathbf{z}_s|\mathbf{z}_t, \mathbf{x}_\theta(\mathbf{z}_t))\).
-      To train the model, we use the technique of variational inference as in continuous diffusion models and minimize the following objective:
+      To train the model, we use the technique of variational inference as in continuous diffusion models and minimize the following objective: -->
       <!-- To simplify the training objective, two constraints on \(\textbf{x}_\theta\) are applied. -->
       <!-- Particularly, when \(\mathbf{z}_t = \mathbf{m}\), \(\textbf{x}_\theta(\textbf{z}_t)^\top\textbf{m} = 0\) and when \(\mathbf{z}_t \neq \textbf{m}\), \(\textbf{x}_\theta(\textbf{z}_t) = \textbf{z}_t\). -->
       <!-- With the help of the two proposed constraints, the training objective takes the following form. -->
-      $$
+      <!-- $$
       \mathcal{L} = \mathbb{E}_{t \in \{\frac{1}{T}, \ldots, 1\}, \mathbf{z}_{0:T} \sim q(\mathbf{z}_{0:T}|\mathbf{x})} \bigg[\underbrace{-\log p_\theta(\mathbf{x}|\mathbf{z}_0)}_{\mathcal{L}_{reconstruct}} + \underbrace{T\frac{\alpha_t - \alpha_s}{1-\alpha_t}\log(\mathbf{x}_\theta(\mathbf{z}_t)^\top\mathbf{x}))}_{\mathcal{L}_{diffusion}} + \underbrace{D_{KL}(q(\mathbf{z}_T|\mathbf{x})\Vert p_\theta(\mathbf{z}_T))}_{\mathcal{L}_{prior}}\bigg],
       $$
       where \(T\) is the predefined number of sampling steps and \(D_{KL}\) denotes the compuation of KL divergence. Of note, the probability distribution at time \(T\) is a delta distribution centered at the \([MASK]\) token, rendering  
       \(\mathcal{L}_{prior}\) as 0 and thus could be omitted. Following <a href="https://arxiv.org/abs/2406.07524"> Sahoo et al. 2024</a>, we refer to this model as MDLM.<br>      
       <br><strong>Failure to remask property</strong>: Following the form for the posterior above, when \(\mathbf{z}_t \neq \mathbf{m}\), the distribution is a discrete delta function concentrated on \(\mathbf{z}_t=\mathbf{x}\).
       We thus have \(p_\theta(\mathbf{z}_s|\mathbf{z}_t) = \mathrm{Cat}(\mathbf{z}_s; \mathbf{z}_t)\), which implies that in the sampling process, once a token is unmasked, it stays unchanged until the end of the generation process.
-      We refer to this as the failure to remask property.
+      We refer to this as the failure to remask property. -->
+      We start our derivation by defining the policy gradient objective for a masked DLM policy \(\pi_\theta\) as:
+
+      $$
+      \nabla_\theta\mathcal{J}(\theta) = \nabla_\theta \mathbb{E}_{\mathbf{x}_0^{1:L}\sim\pi_\theta(\cdot\mid\mathbf{q})}\Big[r(\mathbf{x}_0^{1:L}, \mathbf{q})\Big].
+      $$
+
+      Here, \(\mathbf{q}\) denotes the prompt sequence, \(r\) represents the reward funciton, and \(\mathbf{x}_0^{1:L}\) denotes the
+      \(L\) answer tokens sampled from the model. Based on our derivation (see the full derivation chain in the paper), the GRPO objective for masked DLMs is given by:
+      
+      $$
+      -\mathbb{E}_{\mathbf{x}_0^{1:L}\sim\pi_{\textnormal{old}}} \Big[\sum_{t=0}^{T-1}\frac{1}{L}\sum_{l=1}^L\mathbf{1}_{t,l}\textnormal{min}(\rho_t^lA^l, 
+      \textnormal{clip}(\rho_t^l, 1-\epsilon, 1+\epsilon)A^l) 
+      +\beta D_{\mathrm{KL}}\Big(\pi_\theta(\mathbf{x}_{0:T}^{1:L}\mid \mathbf{q})\Vert \pi_{\textnormal{ref}}(\mathbf{x}_{0:T}^{1:L}\mid \mathbf{q}))\Big)\Big].
+      $$
+      
     </div>
   </div>
 </section>
