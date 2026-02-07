@@ -190,7 +190,7 @@
 
       <br>In this project, we study the problem of RL for DLMs in a principled way. Concretely, we first dervie the GRPO objective of masked DLMs 
       starting from the policy gradient estimation. We then propose practical ways of conducting RL on masked DLMs inspired by our theorectical
-      derviation, which we find to work well empirically compared with previous heuristics-based baselines.
+      derviation, which we find to work well empirically compared to previous heuristics-based baselines.
     </div>
   </div>
 </section>
@@ -280,6 +280,14 @@
       +\beta D_{\mathrm{KL}}\Big(\pi_\theta(\mathbf{x}_{0:T}^{1:L}\mid \mathbf{q})\Vert \pi_{\textnormal{ref}}(\mathbf{x}_{0:T}^{1:L}\mid \mathbf{q}))\Big)\Big].
       $$
       
+      where \(A^l\) denotes the advantage values of the corresponding sample sequence, \(\rho_t^l=\frac{\pi_\theta(\mathbf{x}_t^l\mid\mathbf{x}_{t+1}^{1:L}, \mathbf{q})}{\pi_{\textnormal{old}}(\mathbf{x}_t^l \mid \mathbf{x}_{t+1}^{1:L}, \mathbf{q})}\) denotes the importance sampling weight, 
+      and \(\mathbf{1}_{t,l}\) is the indicator of tokens decoded at time step \(t\), i.e., \(\mathbf{1}_{t,l}=\mathbf{1}_{\mathbf{x}_{t+1}^l=\mathbf{m}, \mathbf{x}_t^l\neq\mathbf{m}}\).<br>
+      
+      <br>To compute this objective, we need to estimate the <strong>trajectory likelihood</strong> of a sequence.
+      Intuitively, for each token in a sample squence, we should compute its likelihood at its decoding time step. However, for standard masked DLMs such as LLaDA,
+      computing the trajectory likelihood of a sample sequence decoded in \(T\) time steps take \(T\) model forward passes, rendering it computationally prohibitive. 
+      Based on this observation, we propose several pratical techinques to compute the DLM's trajectory likelihood in an <strong>efficient and effective</strong> way.
+
     </div>
   </div>
 </section>
