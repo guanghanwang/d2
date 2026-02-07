@@ -326,9 +326,8 @@
       \(2L\)-length sequence \(\mathbf{x}_0^{1:L} \oplus \mathbf{m}^{L+1:2L}\), where \(\oplus\) denotes concatenation along the sequence 
       dimension and \(\mathbf{m}^{L+1:2L}\) are masked tokens. We assign the positional encoding as \(pos_l = l \; \textnormal{mod} \; L\). We then define the attention mask so that 
       a clean token \(\mathbf{x}_0^{\sigma(l)}\) attends to \(\mathbf{x}_0^{\sigma(\leq l)}\), and a mask token \(\mathbf{m}^{L+\sigma(l)}\) attends to 
-      \(\mathbf{x}_0^{\sigma(\lt l)} \cup \mathbf{m}^{L+\sigma(l)}\). In this way, the output logits at position \(L+l\) will be the same as the logits of 
-      token \(\mathbf{x}_0^l\) at its decoding time. In other words, we can achieve unbiased estimation of the trajectory likelihood evaluation of a masked DLM with one model forward
-      pass.
+      \(\mathbf{x}_0^{\sigma(\lt l)} \cup \mathbf{m}^{L+\sigma(l)}\). We then use the output logits of position \(L+l\) as a proxy of the logits of token
+      \(\mathbf{x}_0^l\) at its decoding time step.
 
       <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
         <img src="static/images/d2anyorder.png" alt="Caduceus" style="width:500px;height:400px;">
@@ -349,7 +348,16 @@
       where \(\rho_{n,l}^{\textnormal{AO}}=\frac{\pi_\theta^{\textnormal{AO}}(\mathbf{x}_0^l \mid \mathbf{x}_0^{1:L}\oplus \mathbf{m}^{L+1:2L}, \mathbf{q})}{\pi_{\textnormal{old}}^{\textnormal{AO}}(\mathbf{x}_0^l \mid \mathbf{x}_0^{1:L}\oplus\mathbf{m}^{L+1:2L}, \mathbf{q})}\). For simplicity, we will also call the RL algorithm induced by d2-AnyOrder <strong>d2-AnyOrder</strong> in the remainder of this blog post.
       
       <h3 class="subtitle" style="font-size:1.6rem;"><em>When does the any-order estimator work?</em></h3><br>
-      
+      Despite its simplicity, d2-AnyOrder does not yield unbiased trajectory likelihood evaluation for all masked DLMs naturally. In fact, d2-AnyOrder's unbiasedness is contingent on an assumption that
+      \(\pi^{\textnormal{AO}}(\mathbf{x}_0^l \mid \mathbf{x}_0^{1:L} \oplus \mathbf{m}^{L+1:2L})\) should equals the probability \(\pi(\mathbf{x}_0^{\sigma(l)} \mid \mathbf{x}_0^{\sigma(\lt l)})\)
+      of that token during sampling. Indeed, this property holds by construction when we sample from a masked DLM using a sampling algorithm called <strong>any-order decoding</strong>.
+
+      <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
+        <img src="static/images/anyorderdecoding_code.png" alt="Caduceus" style="width:800px;height:400px;">
+        <br>
+        Pseudocode of any-order decoding.
+      </h4>
+
     </div>
   </div>
 </section>
