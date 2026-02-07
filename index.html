@@ -349,7 +349,7 @@
       
       <h3 class="subtitle" style="font-size:1.6rem;"><em>When does the any-order estimator work?</em></h3><br>
       Despite its simplicity, d2-AnyOrder does not yield unbiased trajectory likelihood evaluation for all masked DLMs naturally. In fact, d2-AnyOrder's unbiasedness is contingent on an assumption that
-      \(\pi^{\textnormal{AO}}(\mathbf{x}_0^l \mid \mathbf{x}_0^{1:L} \oplus \mathbf{m}^{L+1:2L})\) should equals the probability \(\pi(\mathbf{x}_0^{\sigma(l)} \mid \mathbf{x}_0^{\sigma(\lt l)})\)
+      \(\pi^{\textnormal{AO}}(\mathbf{x}_0^l \mid \mathbf{x}_0^{1:L} \oplus \mathbf{m}^{L+1:2L})\) should equal the probability \(\pi(\mathbf{x}_0^{\sigma(l)} \mid \mathbf{x}_0^{\sigma(\lt l)})\)
       of that token during sampling. Indeed, this property holds by construction when we sample from a masked DLM using a sampling algorithm called <strong>any-order decoding</strong>.
 
       <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
@@ -358,6 +358,27 @@
         Pseudocode of any-order decoding.
       </h4>
 
+      In any-order decoding, at each time step, we input a partially masked token sequence \(\mathbf{x}^{1:L}\) (\(\mathbf{x}^l\) could either be a clean token, i.e., \(\mathbf{x}_0^l\) or 
+      a masked token, i.e., \(\mathbf{m}^l\)) into the model
+      and compute the logits at each masked position. Then \(k\) token positions are selected for unmasking based on certain heuristics, after 
+      which unmasked tokens at selected positions are sampled and added to the token sequence. Notably, we set the attention mask of the transformer 
+      parameterizing the DLM to satisfy the following two properties:
+
+      <br><strong>Independent masks.</strong> Mask tokens do not attend to each other: they attend only to unmasked tokens and themselves.
+      <br><strong>Order causality.</strong> Unmasked tokens attend only to tokens decoded at earlier time steps and to themselves.<br>
+
+      <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
+        <img src="static/images/anyorderdecoding.png" alt="Caduceus" style="width:800px;height:400px;">
+        <br>
+        Illustration of the any-order decoding algorithm for masked DLMs. This example follows the setting of the preivous figure, where three tokens are decoded in the order of "for→d2→RL". 
+        At each time step, newly added attention relations in any-order decoding are highlighted with red line markers.
+      </h4>
+
+      <h3 class="subtitle" style="font-size:1.6rem;"><em>When does the any-order estimator not work?</em></h3><br>
+      Any-order decoding can be applied to any masked DLM, which always yields samples whose likelihood can afterwards be computed in a single forward pass.
+      Unfortunately, any-order decoding does not always produce high-quality samples. If the model was not trained with independent masks and order causality, 
+      it may not produce good samples when these properties are introduced at inference time. We have empirically discovered that popular DLMs, such as LLaDA, 
+      falls within this range of models (see evidence in our paper).
     </div>
   </div>
 </section>
@@ -367,104 +388,39 @@
 <!-- ELBO -->
 <section class="section" id="Motivation">
   <div class="container is-max-desktop">
-    <h2 class="title">Why is it okay to reuse the MDLM checkpoint?</h2>
+    <h2 class="title">d2-StepMerge: a practical trajectory likelihood approximator</h2>
     <div class="content is-medium">
-      Now let's wrap up and summerize how to design a remasking sampler. Suppose that we already have a well-trained neural network \(\mathbf{x}_\theta\), we can first design a suitable remasking
-      schecule \(\sigma_t\) and then plug \(\mathbf{x}_\theta\) into \(q(\mathbf{z}_s|\mathbf{z}_t, \mathbf{x})\) to get our parameterized posterior as \(p_\theta(\mathbf{z}_t|\mathbf{z}_s) = q(\mathbf{z}_s|\mathbf{z}_t, \mathbf{x}_\theta(\mathbf{z}_t))\).
-      After this, we can begin the sampling process by starting with a token sequence filled with \([MASK]\) and then iteratively applying \(p_\theta(\mathbf{z}_s|\mathbf{z}_t)\) to it for \(T\) times to get our generated sample.<br>  
+      As noted above, not all DLMs support any-order decoding and thus may not support d2-AnyOrder by default. For these models, we propose our second estimator, d2-StepMerge, which, unlike d2-AnyOrder, only approximates the DLM's trajectory likelihood.<br> 
 
-      <br>However, how to get the well-trained \(\mathbf{x}_\theta\) remains unsolved. Ideally, we should only train the model once and reuse the same neural network for samplers with different \(\sigma_t\) schedules.
-      Here, we argue that we can reuse the MDLM checkpoint. To understand why we make this claim, let's revisit the training objective. After we change the original \(q\) into the remasking \(q_\sigma\), 
-      \(\mathcal{L}_{prior}\) and \(\mathcal{L}_{reconstruct}\) should stay the same since the marginal is unchanged. By applying \(q_\sigma\) and the corresponding \(p_\theta\), the diffusion loss becomes
+      <br>Since in this case the DLM model does not support d2-AnyOrder, we switch back to the typical trajectory likelihood 
+      decomposition for masked DLMs, i.e., \(\pi(\mathbf{x}_{0:T}^{1:L})=\prod_{t=0}^{T-1}\prod_{l=1}^L\mathbf{1}_{t,l}\cdot\pi(\mathbf{x}_t^l \mid \mathbf{x}_t^{1:L})\).
+      Computing this trajectory likelihood naively takes \(T\) model passes, rendering it computationally prohibitive. Consequently, we propose to cut the sample trajectory 
+      of \(T\) tokens evenly into $N$ contiguous time segments. For each time segment, we use the output of one model pass as a proxy for token likelihoods within this segment.
+      Formally, the trajecotry likelihood is approxmiated as 
+
       $$
-      \mathcal{L}_{diffusion}^\sigma = \mathbb{E}_{t \in \{\frac{1}{T}, \ldots, 1\}, \mathbf{z}_t \sim q(\mathbf{z}_t|\mathbf{x})}\bigg[T\frac{(1-\sigma_t)\alpha_t - \alpha_s}{1 - \alpha_t} \log(\mathbf{x}_\theta(\mathbf{z}_t)^\top \mathbf{x}) \bigg]
+        \pi(\mathbf{x}_{0:T}^{1:L}) \approx \prod_{n=0}^{N-1} \prod_{l=1}^L \mathbf{1}_{n,l} \cdot \pi(\mathbf{x}^l_{\frac{nT}{N}} \mid \mathbf{x}^{1:L}_{\frac{(n+1)T}{N}}),
       $$
-      <!-- Here, we make three observations. First, \(\mathcal{L}_{diffusion}^\sigma\) is a reweighted version of \(\mathcal{L}_{diffusion}\). Second, \(\mathcal{L}_{diffusion}^\sigma\) increases monotonically 
-      as \(\sigma_t\) increases. Third, when \(\sigma_t\) reaches it lower bound, i.e., 0, \(\mathcal{L}_{diffusion}^\sigma = \mathcal{L}_{diffusion}\). Combining these observations, we make the following claims.
-      First, ReMDM represents a family of discrete diffusion models with MDLM as its special case. Second, MDLM is the one that yields the tightest evidence lower bound. Therefore, one can presumably reuse 
-      weights from an MDLM model,i.e., using different \(\sigma_t\) at training and inference. Indeed, we find this to be a performant strategy in practice.
-       -->
-       We first note that \(\mathcal{L}_{diffusion}^\sigma\) is a reweighted version of \(\mathcal{L}_{diffusion}\).
-       Second, we observe that \(\mathcal{L}_{diffusion}^\sigma\) increases monotonically in \(\sigma_t\).
-       Finally, when \(\sigma_t\) reaches it lower bound, i.e., 0, \(\mathcal{L}_{diffusion}^\sigma = \mathcal{L}_{diffusion}\).
-       Combining these observations, we make the following claims:
-       (1) ReMDM represents a family of discrete diffusion models with MDLM as its special case.
-       (2) MDLM is the one that yields the tightest evidence lower bound.
-       (3) Therefore, one can presumably reuse weights from an MDLM model, i.e., using different \(\sigma_t\) at training and inference.
-       Indeed, we find this to be a performant strategy in practice.
+
+      where \(\mathbf{1}_{n,l}=\mathbf{1}_{\mathbf{x}^l_{\frac{(n+1)T}{N}}=\mathbf{m}, \mathbf{x}^l_{\frac{nT}{N}}\neq\mathbf{m}}\) is the indicator of tokens decoded in the \(n_{\textnormal{th}}\) time segment.
+      Based on this trjectory likelihood estimator, we train the policy network with the following GRPO objective:
+
+      $$
+      -\mathbb{E}_{\mathbf{x}_{0:T}^{1:L}\sim \pi_{\textnormal{old}}}\Big[\sum_{n=0}^{N-1}\frac1L\sum_{l=1}^L\mathbf{1}_{n,l}\textnormal{min}(\rho_n^lA^l, \textnormal{clip}(\rho_n^l, 1-\epsilon,1+\epsilon)A^l)+\beta D_{\textnormal{KL}}\Big(\pi_\theta(\mathbf{x}_{0:T}^{1:L}\mid \mathbf{q}) \Vert \pi_{\textnormal{ref}}(\mathbf{x}_{0:T}^{1:L}\mid \mathbf{q})\Big)\Big].
+      $$
+
+      Similarly to d2-AnyOrder, we will also call the RL algorithm induced by d2-StepMerge <strong>d2-StepMerge</strong> in the remainder of this blog post. 
+    
+      <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
+        <img src="static/images/d2stepmerge.png" alt="Caduceus" style="width:1000px;height:250px;">
+        <br>
+        Illustration of the d2-StepMerge. In d2-StepMerge, we cut the trajectory evenly into \(N\) time segments and evaluate the likelihood for each segment together. Newly decoded tokens on which we compute the likelihood at the corresponding model forward pass are highlighted.
+      </h4>
+
     </div>
   </div>
 </section>
 <!-- End ELBO-->
-
-
-<!-- Strategy -->
-<section class="section" id="Motivation">
-  <div class="container is-max-desktop">
-    <h2 class="title">Exploring \(\sigma_t\) schedules</h2>
-    <div class="content is-medium">
-      ReMDM opens up a broad design space of remasking samplers with few constraints. Here, we explore some of them. We empirically find that for different tasks, different \(\sigma_t\) schedules work the best.<br>
-      <br><strong>Max-capped Schedule.</strong> We can potentially reduce the maximum probability of remasking to a constant \(\eta_{cap} \in [0, 1]\). Concretely, we let \(\sigma_t = min\{\eta_{cap}, \frac{1-\alpha_s}{\alpha_t}\}\), for all \(t \in [0, 1]\). We denote this schedule as “ReMDM-cap.”<br>
-      <br><strong>Rescaled Schedule.</strong> Alternatively, we can temper the chances of remasking by setting \(\sigma_t = \eta_{rescale}\cdot\sigma_{t}^{max}\), with \(\eta_{rescale} \in [0, 1]\) as a hyperparameter that controls this rescaling. We denote this schedule as “ReMDM-rescale.”<br>
-      <br><strong>Confidence-Based Schedule.</strong> In conjunction with the two strategies above, we explore a further reweighing of \(\sigma_t\) which is based on the intuition that tokens of which 
-      the denoising model is less confident should be assigned a larger probability of remasking. In the previous part of this blog post, if \(t\) is fixed, then the \(\sigma_t\) value for each token in the sequence is the same. Now let's consider different \(\sigma_t\) for 
-      tokens at different positions. Consider the \(\ell\)-th token in a sequence of \(L\) latents at time \(t\). For each \(\ell \in \{1, \ldots, L\}\), 
-      we store its decoding probability at the time \(\tau\) at which it was last unmasked. Concretely, if \(\mathbf{z}_t^{(\ell)} \neq \mathbf{m}\), then we define \( \psi_t^{(\ell)} := \mathbf{x}_{\theta, \tau}^{(\ell)\top}\mathbf{z}_\tau^{(\ell)} \)
-      If \(\mathbf{z}_t^{(\ell)} = \mathbf{m}\), then \( \psi_t^{(l)} := \infty\). Thus, \(\psi_t^{(\ell)}\) serves as a 'confidence score' for unmasked tokens. We then compute \(\sigma_t^{(\ell)} = \eta_{conf}^{\ell} \cdot \sigma_t\), where
-      \(\eta_{conf}^{(\ell)} = \frac{\exp(-\psi_t^{(\ell)})}{\sum_{\ell^\prime=1}^L \exp(-\psi_{t}^{(\ell^\prime)})} \). With this schedule, masked tokens are decoded using the approximate posterior from MDLM, and the unmasked tokens
-      are remasked negatively proportional to their confidence. We denote this schedule as “ReMDM-conf.”<br>
-      <br> So far, we have been applying remasking for all \(t \in [0, 1]\). However, there may be certain periods in the generation process when remasking is not necessary. For example, in the early phase of sampling when few tokens are unmasked, 
-      remasking them may do little good but slow down the generation. Therefore, we propose two methods for optionally 'turning on/off' ReMDM sampling, which amount to the following modification of the \(\sigma_t\) schedules above:
-      $$
-      \tilde{\sigma}_t = \begin{cases} \sigma_t, & \text{if } t \in [t_{on}, t_{off}), \text{with } t_{on} > t_{off} \\
-        0, & \text{otherwise}. \end{cases}
-      $$ 
-      <strong>Switch.</strong> We choose some \(t_{switch} \in (0, 1]\) and we have \( [t_{on}, t_{off}) = [t_{switch}, 0) \). We denote this strategy as “ReMDM-switch.”<br>
-      <br><strong>Loop.</strong> In this strategy, we set both \(t_{on}, t_{off} \in (0, 1] \). Furthermore, in the range when ReMDM is activated, we modify the noise schedule to be constant, such that
-      \(\alpha_t = \alpha(t_{on})\). As shown in the figure below, this divides the sampling process into three phases. In the first phase, the model generates tokens without remasking (\(\sigma_t = 0\), i.e., using MDLM). In the
-      second phase, we hold \(\alpha\) constant (i.e., \(\alpha_s = \alpha_t\)), and the model is asked to remask and predict a proportion of the generated tokens in a loop. In particular, 
-      one can use any ReMDM strategy introduced above in this phase. Intuitively, if a 'bad' token is remasked, it will likely be replaced with a 'good' token due to the abundant context.
-      Even if a 'good' token happens to be remasked, since the signal-to-noise ratio is designed to be high in this portion of the generation process, it will likely be re-decoded as other (if not the same)
-      'good' tokens. In this way, ReMDM-loop corrects the 'bad' tokens and maintains the 'good' tokens, i.e., fixes mistakes. Finally, in the third phase, we let the 
-      model predict any remaining unmasked tokens using the MDLM posterior. We denote this strategy as “ReMDM -loop.”<br>
-      <br><div class="container is-max-desktop"></div>
-        <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
-          <img src="static/images/remdm_loop.png" alt="Caduceus" style="width:400px;height:280px; display: block; margin: auto;">
-          <br>
-            Depiction of ReMDM-loop \(\alpha_t\) and \(\sigma_t\) schedules.
-        </h4>
-        <br>
-      </div>
-    </div>
-  </div>
-</section>
-<!-- End Strategy-->
-
-
-<!-- Predictor-Corrector -->
-<section class="section" id="Motivation">
-  <div class="container is-max-desktop">
-    <h2 class="title">ReMDM v.s. predictor-corrector</h2>
-    <div class="content is-medium">
-      Previous works, e.g., the forward-backward (FB; <a href="https://proceedings.neurips.cc/paper_files/paper/2022/hash/b5b528767aa35f5b1a60fe0aaeca0563-Abstract-Conference.html">Campbell et al. (2022)</a>) 
-      and discrete flow matching (DFM; <a href="https://proceedings.neurips.cc/paper_files/paper/2024/hash/f0d629a734b56a642701bba7bc8bb3ed-Abstract-Conference.html"></a>
-        Gat et al., 2024</a>) correctors, propose to tackle the failure to remask property with discrete predictor-corrector samplers, a special type of discrete 
-      diffusion samplers that decompose a single sampling step into one predictor step followed by a certain number of corrector 
-      steps that remediate possible mistakes without changing the marginals. Here, we demonstrate that these methods are special
-      cases of ReMDM<br>
-      <br><strong>Proposition 1.</strong> The FB corrector on MDLM is a special case of ReMDM where \(\sigma_t = \frac{\alpha_s - \alpha_t}{\alpha_t}\).
-      <br><strong>Proposition 2.</strong> The DFM corrector on MDLM is a special case of ReMDM where \(\alpha_t = \frac{\beta_t(\alpha_s - \alpha_t)}{\alpha_t}\). 
-      \(\beta_t \in \mathbb{R}\) denotes the corrector schecule.<br>
-      
-      Proposition 2 ensures that any DFM corrector can be transformed into a ReMDM sampler, which shows that DFM corrector
-      is a subset of ReMDM. The following proposition proves that this subset is proper.
-      
-      <br><strong>Proposition 3.</strong> The ReMDM sampler is more general than DFM corrector, since only the former can accommodate noise schedules with constant
-      \(\alpha_t\) for some range \([t, t - \Delta t]\) where \(\Delta t > 0\).<br>
-    </div>
-  </div>
-</section>
-<!-- End Strategy-->
 
 
 <!-- Experiments -->
