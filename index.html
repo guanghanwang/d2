@@ -275,7 +275,7 @@
       \(L\) answer tokens sampled from the model. Based on our derivation (see the full derivation chain in the paper), the GRPO objective for masked DLMs is given by:
       
       $$
-      -\mathbb{E}_{\mathbf{x}_0^{1:L}\sim\pi_{\textnormal{old}}} \Big[\sum_{t=0}^{T-1}\frac{1}{L}\sum_{l=1}^L\mathbf{1}_{t,l}\textnormal{min}(\rho_t^lA^l, 
+      -\mathbb{E}_{\mathbf{x}_0^{1:L}\sim\pi_{\textnormal{old}(\cdot \mid \mathbf{q})}} \Big[\sum_{t=0}^{T-1}\frac{1}{L}\sum_{l=1}^L\mathbf{1}_{t,l}\textnormal{min}(\rho_t^lA^l, 
       \textnormal{clip}(\rho_t^l, 1-\epsilon, 1+\epsilon)A^l) 
       +\beta D_{\mathrm{KL}}\Big(\pi_\theta(\mathbf{x}_{0:T}^{1:L}\mid \mathbf{q})\Vert \pi_{\textnormal{ref}}(\mathbf{x}_{0:T}^{1:L}\mid \mathbf{q}))\Big)\Big].
       $$
