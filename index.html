@@ -185,7 +185,7 @@
     <h2 class="title">Motivation</h2>
     <div class="content is-medium">
       Masked diffusion language models (DLMs) have recently emerged as a competitive alternative to autoregressive (AR) models for language generation. 
-      Yet, while reinforcement learning (RL) has become the de-facto approach for inducing reasoning in AR LLMs, post-training of DLMs using RL
+      Yet, while reinforcement learning (RL) has become the de-facto approach for inducing reasoning in AR LLMs, post-training DLMs using RL
       remains an active research area due to the complexity of DLM policies.<br>  
 
       <br>In this project, we study the problem of RL for DLMs in a principled way. Concretely, we first dervie the GRPO objective of masked DLMs 
@@ -284,9 +284,9 @@
       and \(\mathbf{1}_{t,l}\) is the indicator of tokens decoded at time step \(t\), i.e., \(\mathbf{1}_{t,l}=\mathbf{1}_{\mathbf{x}_{t+1}^l=\mathbf{m}, \mathbf{x}_t^l\neq\mathbf{m}}\).<br>
       
       <br>To compute this objective, we need to estimate the <strong>trajectory likelihood</strong> of a sequence.
-      Intuitively, for each token in a sample squence, we should compute its likelihood at its decoding time step. However, for standard masked DLMs such as LLaDA,
-      computing the trajectory likelihood of a sample sequence decoded in \(T\) time steps take \(T\) model forward passes, rendering it computationally prohibitive. 
-      Based on this observation, we propose several pratical techinques to compute the DLM's trajectory likelihood in an <strong>efficient and effective</strong> way.
+      In other words, for each token in a sample squence, we should compute its likelihood at its decoding time step. However, for standard masked DLMs such as LLaDA,
+      computing the trajectory likelihood of a sample sequence decoded in \(T\) time steps takes \(T\) model forward passes, rendering it computationally prohibitive. 
+      Based on this observation, we propose several pratical techinques to compute masked DLMs' trajectory likelihood in an <strong>efficient and effective</strong> way.
 
     </div>
   </div>
@@ -300,8 +300,8 @@
     <h2 class="title">d2-AnyOrder: an unbiased, one-model pass trajectory likelihood estimator</h2>
     <div class="content is-medium">
       <h3 class="subtitle" style="font-size:1.6rem;"><em>Any-order autoregressive models</em></h3><br>
-      In this section, we introduce <strong>d2-AnyOrder</strong>, an estimator that can achieve unbiased trajectory 
-      likelihood estimation for masked DLMs with only one model pass. Since this estimator is inspired by the concept
+      In this section, we introduce <strong>d2-AnyOrder</strong>, our trajectory likelihood estimator that can achieve unbiased trajectory 
+      likelihood evaluation for masked DLMs with only one model pass. Since this estimator is inspired by the concept
       of any-order autoregressive models (AO-ARMs), we first take a detour to introduce AO-ARMs.<br>
 
       <br>The concept of AO-ARM is proposed in <a href="https://arxiv.org/abs/2110.02037"> Hoogeboom et al., 2021</a>,
@@ -332,7 +332,7 @@
       <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
         <img src="static/images/d2anyorder.png" alt="Caduceus" style="width:500px;height:400px;">
         <br>
-        Illustration of d2-AnyOrder, our one-shot, unbiased trajectory likelihood evaluation. We depict attention with query tokens (one layer
+        Illustration of d2-AnyOrder, our one-shot, unbiased trajectory likelihood estimator. We depict attention with query tokens (one layer
         up) attending to keys / values (one layer below) via an undirected connected line. The output at each position is 
         depicted with a directed arrow. “pos” refers to positional encoding index. We use a
         three token example where the decoding order is ”for→d2→RL”.
@@ -392,11 +392,11 @@
     <div class="content is-medium">
       As noted above, not all DLMs support any-order decoding and thus may not support d2-AnyOrder by default. For these models, we propose our second estimator, d2-StepMerge, which, unlike d2-AnyOrder, only approximates the DLM's trajectory likelihood.<br> 
 
-      <br>Since in this case the DLM model does not support d2-AnyOrder, we switch back to the typical trajectory likelihood 
+      <br>Since in this case the DLM model does not support d2-AnyOrder, we switch back to the standard trajectory likelihood 
       decomposition for masked DLMs, i.e., \(\pi(\mathbf{x}_{0:T}^{1:L})=\prod_{t=0}^{T-1}\prod_{l=1}^L\mathbf{1}_{t,l}\cdot\pi(\mathbf{x}_t^l \mid \mathbf{x}_t^{1:L})\).
       Computing this trajectory likelihood naively takes \(T\) model passes, rendering it computationally prohibitive. Consequently, we propose to cut the sample trajectory 
-      of \(T\) tokens evenly into $N$ contiguous time segments. For each time segment, we use the output of one model pass as a proxy for token likelihoods within this segment.
-      Formally, the trajecotry likelihood is approxmiated as 
+      of \(T\) tokens evenly into \(N\) contiguous time segments. For each time segment, we use the output of one model pass as a proxy for token likelihoods within this segment.
+      Formally, the trajecotry likelihood is approxmiated as: 
 
       $$
         \pi(\mathbf{x}_{0:T}^{1:L}) \approx \prod_{n=0}^{N-1} \prod_{l=1}^L \mathbf{1}_{n,l} \cdot \pi(\mathbf{x}^l_{\frac{nT}{N}} \mid \mathbf{x}^{1:L}_{\frac{(n+1)T}{N}}),
@@ -428,7 +428,70 @@
   <div class="container is-max-desktop">
     <h2 class="title">Experimental results</h2>
     <div class="content is-medium">
-      
+      <h3 class="subtitle" style="font-size:1.6rem;"><em>d2-AnyOrder</em></h3><br>
+        We first evaluate d2-AnyOrder on Eso-LM (<a href="https://arxiv.org/abs/2506.01928">
+      Sahoo et al., 2025</a>), a 190M parameter masked DLM trained from scratch on Open-Web-Text. The training algorithm
+      of Eso-LM ensures that it supports any-order decoding. As shown in the following table, on a task of toxiciy steering
+      (<a href="https://arxiv.org/abs/2501.06848">Singhal et al., 2025</a>) in which the model is supposed to steer up toxicity 
+      score, d2-AnyOrder significantly dominates the correpsonding baseline under the same compute budget.<br>
+
+      <br>
+      <table class="results-table">
+  <caption>
+    Table: Toxicity Score vs. FLOPs. 
+    Our d2-AnyOrder approach significantly dominates the DDPO baseline 
+    in toxicity steering for a given compute budget.
+  </caption>
+
+  <thead>
+    <tr>
+      <th rowspan="2">Method</th>
+      <th colspan="6">FLOPs × 10<sup>17</sup></th>
+    </tr>
+    <tr>
+      <th>0.00</th>
+      <th>0.25</th>
+      <th>0.50</th>
+      <th>0.75</th>
+      <th>1.00</th>
+      <th>1.25</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>DDPO toxicity</td>
+      <td>-9.2</td>
+      <td>-9.2</td>
+      <td>-9.1</td>
+      <td>-8.9</td>
+      <td>-8.9</td>
+      <td>-8.6</td>
+    </tr>
+
+    <tr>
+      <td>d2 toxicity (ours)</td>
+      <td>-9.2</td>
+      <td><b>-8.5</b></td>
+      <td><b>-7.3</b></td>
+      <td><b>-5.5</b></td>
+      <td><b>-2.7</b></td>
+      <td><b>-0.7</b></td>
+    </tr>
+  </tbody>
+</table>
+    <br>
+
+    We then evaluate d2-AnyOrder on an any-order causal LLaDA model that we finetune from LLaDA-8B-Instruct (see our paper for detailed finetuning recipe).
+    As shown in the following figure, d2-AnyOrder strictly dominates diffu-GRPO, where d2-AnyOrder consistently pushes up the GSM8K test set accuracy while
+    diffu-GRPO barely does so.
+
+    <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
+        <img src="static/images/d2anyorder_result.png" alt="Caduceus" style="width:600px;height:400px;">
+        <br>
+        Performance-compute dynamics of d2-AnyOrder and diffu-GRPO on the any-order causal LLaDA checkpoint that we finetuned.
+      </h4>
+
     </div>
   </div>
 </section>
