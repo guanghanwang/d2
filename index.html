@@ -145,7 +145,7 @@
   <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
     <img src="static/images/graphical_abstract.png" alt="Caduceus" style="width:2000px;height:280px;">
     <br>
-      Our reinforcement learning (RL) post-training framework for diffusion language models, d2, consistently outperforms previous baselines, such as 
+      <b>Figure 1.</b> Our reinforcement learning (RL) post-training framework for diffusion language models, d2, consistently outperforms previous baselines, such as 
       d1 (<a href="https://arxiv.org/abs/2504.12216">
       Zhao et al., 2025</a>), and wd1 (<a href="https://arxiv.org/abs/2507.08838">
       Tang et al., 2025</a>) across four math and logical reasoning benchmarks. While previous methods, such as d1, relies on chain-of-thought supervised finetuning (SFT) to enhance 
@@ -332,7 +332,7 @@
       <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
         <img src="static/images/d2anyorder.png" alt="Caduceus" style="width:500px;height:400px;">
         <br>
-        Illustration of d2-AnyOrder, our one-shot, unbiased trajectory likelihood estimator. We depict attention with query tokens (one layer
+        <b>Figure 2.</b> Illustration of d2-AnyOrder, our one-shot, unbiased trajectory likelihood estimator. We depict attention with query tokens (one layer
         up) attending to keys / values (one layer below) via an undirected connected line. The output at each position is 
         depicted with a directed arrow. “pos” refers to positional encoding index. We use a
         three token example where the decoding order is ”for→d2→RL”.
@@ -355,7 +355,7 @@
       <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
         <img src="static/images/anyorderdecoding_code.png" alt="Caduceus" style="width:800px;height:400px;">
         <br>
-        Pseudocode of any-order decoding.
+        <b>Figure 3.</b> Pseudocode of any-order decoding.
       </h4>
 
       In any-order decoding, at each time step, we input a partially masked token sequence \(\mathbf{x}^{1:L}\) (\(\mathbf{x}^l\) could either be a clean token, i.e., \(\mathbf{x}_0^l\) or 
@@ -370,7 +370,7 @@
       <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
         <img src="static/images/anyorderdecoding.png" alt="Caduceus" style="width:800px;height:400px;">
         <br>
-        Illustration of the any-order decoding algorithm for masked DLMs. This example follows the setting of the preivous figure, where three tokens are decoded in the order of "for→d2→RL". 
+        <b>Figure 4.</b> Illustration of the any-order decoding algorithm for masked DLMs. This example follows the setting of the preivous figure, where three tokens are decoded in the order of "for→d2→RL". 
         At each time step, newly added attention relations in any-order decoding are highlighted with red line markers.
       </h4>
 
@@ -414,7 +414,7 @@
       <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
         <img src="static/images/d2stepmerge.png" alt="Caduceus" style="width:1000px;height:300px;">
         <br>
-        Illustration of the d2-StepMerge. In d2-StepMerge, we cut the trajectory evenly into \(N\) time segments and evaluate the likelihood for each segment together. Newly decoded tokens on which we compute the likelihood at the corresponding model forward pass are highlighted.
+        <b>Figure 5.</b> Illustration of the d2-StepMerge. In d2-StepMerge, we cut the trajectory evenly into \(N\) time segments and evaluate the likelihood for each segment together. Newly decoded tokens on which we compute the likelihood at the corresponding model forward pass are highlighted.
       </h4>
 
     </div>
@@ -438,7 +438,7 @@
       <br>
       <table class="results-table">
   <caption>
-    Table: Toxicity Score vs. FLOPs. 
+    <b>Table 1.</b> Toxicity Score vs. FLOPs. 
     Our d2-AnyOrder approach significantly dominates the DDPO baseline 
     in toxicity steering for a given compute budget.
   </caption>
@@ -487,10 +487,51 @@
     diffu-GRPO barely does so.
 
     <h4 class="subtitle has-text-centered" style="font-size:1.1rem;font-weight: normal;">
-        <img src="static/images/d2anyorder_result.png" alt="Caduceus" style="width:600px;height:400px;">
+        <img src="static/images/d2anyorder_result.png" alt="Caduceus" style="width:480px;height:360px;">
         <br>
-        Performance-compute dynamics of d2-AnyOrder and diffu-GRPO on the any-order causal LLaDA checkpoint that we finetuned.
+        <b>Figure 6.</b>Performance-compute dynamics of d2-AnyOrder and diffu-GRPO on the any-order causal LLaDA checkpoint that we finetuned.
       </h4>
+
+    <h3 class="subtitle" style="font-size:1.6rem;"><em>d2-StepMerge</em></h3><br>
+      In the following figures, we demonstrate the performance-compute dynamics of d2-StepMerge and 
+      diffu-GRPO on four math and logical reasoning benchmarks when applied to LLaDA-8B-Instruct. 
+      d2-StepMerge consistently outperforms diffu-GRPO in all four benchmarks. In Sudoku, Countdown, and GSM8K, d2-StepMerge significantly dominates diffu-GRPO, and in MATH500, d2-StepMerge demonstrates a better trend. These results indicate that d2 achieves a superior trade-off between efficiency and performance.
+    <figure class="multi-fig" id="fig7">
+  <div class="subfig-grid">
+    <figure class="subfig">
+      <a href="static/images/sudoku_main.png" target="_blank" rel="noopener">
+        <img src="static/images/sudoku_main.png" alt="(a) Sudoku: Accuracy vs FLOPs">
+      </a>
+      <figcaption><span class="subfig-label">(a)</span> Sudoku</figcaption>
+    </figure>
+
+    <figure class="subfig">
+      <a href="static/images/countdown_main.png" target="_blank" rel="noopener">
+        <img src="static/images/countdown_main.png" alt="(b) Countdown: Accuracy vs FLOPs">
+      </a>
+      <figcaption><span class="subfig-label">(b)</span> Countdown</figcaption>
+    </figure>
+
+    <figure class="subfig">
+      <a href="static/images/gsm8k_main.png" target="_blank" rel="noopener">
+        <img src="static/images/gsm8k_main.png" alt="(c) GSM8K: Accuracy vs FLOPs">
+      </a>
+      <figcaption><span class="subfig-label">(c)</span> GSM8K</figcaption>
+    </figure>
+
+    <figure class="subfig">
+      <a href="static/images/math_main.png" target="_blank" rel="noopener">
+        <img src="static/images/math_main.png" alt="(d) MATH500: Accuracy vs FLOPs">
+      </a>
+      <figcaption><span class="subfig-label">(d)</span> MATH500</figcaption>
+    </figure>
+  </div>
+
+  <figcaption class="main-caption">
+    <b>Figure 7.</b> Performance-compute dynamics of d2-StepMerge and diffu-GRPO on four reasoning benchmarks. Experiments are
+    conducted on LLaDA-8B-Instruct checkpoints.
+  </figcaption>
+</figure>
 
     </div>
   </div>
